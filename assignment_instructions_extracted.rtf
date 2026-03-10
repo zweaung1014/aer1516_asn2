@@ -1,0 +1,130 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fmodern\fcharset0 CourierNewPSMT;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red0\green0\blue149;}
+{\*\expandedcolortbl;;\csgray\c0;\cspthree\c8\c0\c62300;}
+\margl1440\margr1440\vieww21080\viewh13940\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs39\fsmilli19925 \cf2 AER1516: Robot Motion Planning\
+
+\fs34\fsmilli17215 Assignment #2: Sampling-Based Motion Planning\
+
+\fs28\fsmilli14346 Winter 2026\
+
+\fs23\fsmilli11955 Assignment Overview\
+
+\fs19\fsmilli9963 This assignment is designed to provide some experience with sampling-based motion planning. The assign-\
+ment is due on Friday, March 13, 2026 by 11:59 p.m.. The number of points available are shown next to\
+each portion of the assignment description below; there are 50 points in total. You will submit Python code\
+and a PDF file (in a 
+\f1 .tar 
+\f0 archive).\
+
+\fs23\fsmilli11955 Motion Planning for a Dubins Vehicle\
+
+\fs19\fsmilli9963 The rapidly-exploring random trees (RRT) algorithm is a widely-used algorithm for sampling-based robot\
+path planning, in part because it is able to take into account kinodynamic constraints. These are constraints\
+on velocity and acceleration, for example. RRTs are also able to handle nonholonomic constraints, that is,\
+constraints that involve the possible paths taken (parallel parking is such an example: a car cannot move\
+sideways instantaneously). RRT* is a variant of RRT that produces paths that are provably asymptotically\
+optimal, i.e., paths that converge almost surely to the optimum as the number of samples increases.\
+A popular class of kinodynamic paths is known as Dubins paths. A Dubins path is the shortest curve that\
+connects two points in the two-dimensional Euclidean plane with a constraint on the curvature of the path,\
+and with prescribed initial and final tangent vectors to the path. An assumption is made that the vehicle can\
+only travel forward. This is a very useful model for many robotics applications. You can read more about\
+Dubins paths \cf3 here\cf2 . An example of such a path is shown in Figure \cf3 1\cf2 .\
+
+\fs23\fsmilli11955 Your Assignment Tasks\
+
+\fs19\fsmilli9963 As part of the assignment, your tasks are to:\
+1. Implement an RRT-based planner for a Dubins-type vehicle in a 2D planar world with circular obstacles.\
+The RRT planning function should accept an RRT problem setup object that contains: a map (2D size of\
+the world), a list of circular obstacles, a starting pose, and a goal pose (as well as plenty of helper functions\
+for dubins path generation). (20 points)\
+The function should produce a list of nodes along a valid path starting from the initial state and reaching\
+the goal state. Use the function template in the file called 
+\f1 rrt_planner.py
+\f0 . Instructions have been\
+provided in this file. The above-mentioned problem setup object as well as a simple test have been im-\
+plemented in the helper file called 
+\f1 dubins_path_problem.py
+\f0 , while other helpful Dubins-type path\
+generation functions have been provided in 
+\f1 dubins_path_planning.py
+\f0 .\
+Hint: A purely random exploration strategy is not fast enough when finding the goal. If you already know\
+the goal pose, a \'93smarter\'94 random exploration strategy can be employed to find a faster solution. Consider\
+what you now know about metrics as well.\
+1 of 3
+\fs24 \cf0 \page 
+\fs19\fsmilli9963 \cf2 AER1516: Robot Motion Planning Assignment #2: Sampling-Based Motion Planning\
+2. Implement (as a different function) an RRT*-based planner for the Dubins-type vehicle. The RRT* plan-\
+ning function should accept the same problem setup as the function above, and produce a list of nodes\
+along a valid path starting from the initial state and reaching the goal state. You may employ the same\
+set of helper functions (and tests). (25 points)\
+Use the function template in file called 
+\f1 rrt_star_planner.py
+\f0 . Instructions have been provided in this\
+file. The RRT*-based planner should produce shorter paths than the RRT-based planner.\
+3. Generate a bar chart plot that compares the performance of RRT against RRT* for 1,000 random instances\
+of a reasonably difficult Dubins planning problem. Your comparison metric (bar height) should be the\
+average path length of the RRT solution versus the average path length of the RRT* solution. (5 points)\
+Your goal is to highlight the gains that can be achieved by using RRT*. As such, you are free to design an\
+obstacle-strewn environment that favours RRT* (as you see fit). For this portion of the assignment, you\
+should submit a PDF document (called 
+\f1 comparison.pdf
+\f0 ) that contains a plot of the environment you\
+have built and the bar chart. Please also include a note that indicates which seed value you used for the\
+random number generator in Python. You should keep the 
+\f1 max_iter 
+\f0 parameter set to its default value\
+of 10,000.\
+Figure 1: Example Dubins LRL path.\
+Note that large portions of code have already been provided\'97for example 
+\f1 dubins_path_problem.py\
+
+\f0 already contains a propagation function and a collision checking function. You are encouraged to review\
+this code to understand the \'91big picture\'92 of how everything works. The code is well documented for your\
+understanding.\
+
+\fs23\fsmilli11955 Submission and Grading\
+
+\fs19\fsmilli9963 You must write your own code using Python 3.10 (or later) and NumPy 1.18.0 (or later). If your code does\
+not run, we will be unable to test it. To submit your code, put it in a 
+\f1 .tar 
+\f0 file with this command (from a\
+directory containing the two requisite 
+\f1 .py 
+\f0 files and the PDF file):\
+
+\f1 tar cvf handin.tar rrt_planner.py rrt_star_planner.py comparison.pdf\
+
+\f0 2 of 3
+\fs24 \cf0 \page 
+\fs19\fsmilli9963 \cf2 AER1516: Robot Motion Planning Assignment #2: Sampling-Based Motion Planning\
+You may then upload your 
+\f1 .tar 
+\f0 file through Quercus. Note that only the above three files should be\
+included in the archive. These are the only three files we will examine for grading.\
+We will run a variety of automated (and manual) tests to check the operation of your code, and it must\
+function properly for you to receive full marks. Each test will provide an obstacle map, a start pose, and a\
+goal pose. Your functions must return a kinematically feasible set of nodes from the start pose to the final goal\
+pose, with no collisions. The tests will check whether nodes on your paths are correct (we will fix the seed\
+of the pseudo-random number generator to ensure that all results will be the same between runs). Keep in\
+mind that there are (reasonable) time limits on the tests (particularly for RRT), which implies it is essential\
+to reach the goal pose fairly fast.\
+A validation script, 
+\f1 validate_submission.py
+\f0 , is included in the assignment code package. Run it with\
+
+\f1 python validate_submission.py 
+\f0 to check your planners against a subset of our test cases before sub-\
+mitting. The script verifies that paths start and end at the correct poses, are collision-free, and stay within\
+the map boundaries (including intermediate Dubins path waypoints). The script is self-explanatory, so we\
+encourage you to read through it to understand exactly what is being checked. Passing all checks in this\
+script is necessary but not sufficient for full marks\'97the automated grading system uses additional test\
+cases and stricter checks.\
+Grading criteria also include: correctness and succinctness of the implementation of your functions, proper\
+overall program operation, and code commenting. Code that is not properly commented or that looks like\
+\'91spaghetti\'92 may result in an overall deduction of up to 10%.\
+3 of 3}
