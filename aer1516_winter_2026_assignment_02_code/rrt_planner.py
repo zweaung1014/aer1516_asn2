@@ -68,38 +68,94 @@ def rrt_planner(rrt_dubins, display_map=False):
     NOTE: In order for the rrt_dubins.draw_graph function to work properly, it is
     important to populate rrt_dubins.node_list with all valid RRT nodes.
     """
+    # ----- Helper Functions -----
+    def find_nearest_node(node_list, x, y):
+        """Find the node in node_list closest to (x, y) using Euclidean distance."""
+        min_dist = float('inf')
+        nearest = None
+        for node in node_list:
+            dist = math.hypot(node.x - x, node.y - y)
+            if dist < min_dist:
+                min_dist = dist
+                nearest = node
+        return nearest
+
+    def is_within_bounds(node):
+        """Check if all path waypoints are within map boundaries."""
+        if node is None:
+            return False
+        for x, y in zip(node.path_x, node.path_y):
+            if x < rrt_dubins.x_lim[0] or x > rrt_dubins.x_lim[1]:
+                return False
+            if y < rrt_dubins.y_lim[0] or y > rrt_dubins.y_lim[1]:
+                return False
+        return True
+
+    def build_path(goal_node):
+        """Backtrack from goal_node to start via parent pointers, return path list."""
+        path = []
+        node = goal_node
+        while node is not None:
+            path.append(node)
+            node = node.parent
+        path.reverse()  # Reverse to get [start, ..., goal]
+        return path
+
+    # ----- Parameters -----
+    goal_bias = 0.15       # Probability of sampling the goal pose
+    goal_threshold = 2.0   # Distance threshold to attempt direct goal connection
+
+    # Variable to store the final goal node when path is found
+    final_goal_node = None
+
     # LOOP for max iterations
     for i in range(rrt_dubins.max_iter):
 
-        # TODO: Generate a random vehicle state (x, y, yaw)
-        # Hint: Ensure the state is within the bounds of rrt_dubins's map_area
+        # Generate a random vehicle state (x, y, yaw) with goal bias
+        if random.random() < goal_bias:
+            # Sample the goal pose directly
+            rand_x = rrt_dubins.goal.x
+            rand_y = rrt_dubins.goal.y
+            rand_yaw = rrt_dubins.goal.yaw
+        else:
+            # Sample a random pose within map bounds
+            rand_x = random.uniform(rrt_dubins.x_lim[0], rrt_dubins.x_lim[1])
+            rand_y = random.uniform(rrt_dubins.y_lim[0], rrt_dubins.y_lim[1])
+            rand_yaw = random.uniform(-math.pi, math.pi)
 
-        # TODO: Find an existing node nearest to the random vehicle state
-        # example of usage
-        # new_node = rrt_dubins.propagate(
-        #     rrt_dubins.Node(0, 0, 0), rrt_dubins.Node(1, 1, 0)
-        # )
+        # Find an existing node nearest to the random vehicle state
+        nearest_node = find_nearest_node(rrt_dubins.node_list, rand_x, rand_y)
 
-        # TODO: Check if the path between nearest node and random state has obstacle collision
-        # Add the node to node_list if it is valid
-        # example of usage
-        # if rrt_dubins.check_collision(new_node):
-        #     rrt_dubins.node_list.append(new_node)  # Storing all valid nodes
+        # Create a temporary node for the random state and propagate
+        rand_node = rrt_dubins.Node(rand_x, rand_y, rand_yaw)
+        new_node = rrt_dubins.propagate(nearest_node, rand_node)
 
-        # Draw current view of the map
-        # PRESS ESCAPE TO EXIT
-        if display_map:
-            rrt_dubins.draw_graph()
+        # Check if the path between nearest node and random state has obstacle collision
+        # Add the node to node_list if it is valid (collision-free and within bounds)
+        if new_node is not None and rrt_dubins.check_collision(new_node) and is_within_bounds(new_node):
+            rrt_dubins.node_list.append(new_node)  # Storing all valid nodes
 
-        # TODO: Check if new_node is close enough to the goal
-        # Replace 'True' with your goal check logic
-        if True:
-            print("Iters:", i, ", number of nodes:", len(rrt_dubins.node_list))
-            break
+            # Draw current view of the map
+            # PRESS ESCAPE TO EXIT
+            if display_map:
+                rrt_dubins.draw_graph()
+
+            # Check if new_node is close enough to the goal
+            dist_to_goal = rrt_dubins.calc_dist_to_goal(new_node.x, new_node.y)
+            if dist_to_goal < goal_threshold:
+                # Attempt to connect directly to the goal
+                goal_node = rrt_dubins.propagate(new_node, rrt_dubins.goal)
+                if goal_node is not None and rrt_dubins.check_collision(goal_node) and is_within_bounds(goal_node):
+                    rrt_dubins.node_list.append(goal_node)
+                    final_goal_node = goal_node
+                    print("Iters:", i, ", number of nodes:", len(rrt_dubins.node_list))
+                    break
 
     else:
         # This else block executes if the for loop finishes without breaking
         print("Reached max iterations without finding a path")
 
-    # TODO: Return path, which is a list of nodes leading to the goal...
+    # Return path, which is a list of nodes leading to the goal
+    if final_goal_node is not None:
+        return build_path(final_goal_node)
     return None
