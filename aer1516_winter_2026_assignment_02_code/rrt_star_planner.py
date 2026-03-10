@@ -69,40 +69,176 @@ def rrt_star_planner(rrt_dubins, display_map=False):
     NOTE: In order for the rrt_dubins.draw_graph function to work properly, it is
     important to populate rrt_dubins.node_list with all valid RRT nodes.
     """
+    # ----- Helper Functions -----
+    def find_nearest_node(node_list, x, y):
+        """Find the node in node_list closest to (x, y) using Euclidean distance."""
+        min_dist = float('inf')
+        nearest = None
+        for node in node_list:
+            dist = math.hypot(node.x - x, node.y - y)
+            if dist < min_dist:
+                min_dist = dist
+                nearest = node
+        return nearest
+
+    def is_within_bounds(node):
+        """Check if all path waypoints are within map boundaries."""
+        if node is None:
+            return False
+        for x, y in zip(node.path_x, node.path_y):
+            if x < rrt_dubins.x_lim[0] or x > rrt_dubins.x_lim[1]:
+                return False
+            if y < rrt_dubins.y_lim[0] or y > rrt_dubins.y_lim[1]:
+                return False
+        return True
+
+    def find_neighbors(node_list, x, y, radius):
+        """Return all nodes within radius of (x, y)."""
+        neighbors = []
+        for node in node_list:
+            dist = math.hypot(node.x - x, node.y - y)
+            if dist <= radius:
+                neighbors.append(node)
+        return neighbors
+
+    def choose_best_parent(neighbors, rand_node):
+        """
+        From neighbors, find the one that yields the lowest-cost collision-free path
+        to rand_node. Returns (best_node, best_cost) or (None, inf) if none valid.
+        """
+        best_parent = None
+        best_cost = float('inf')
+        best_new_node = None
+
+        for neighbor in neighbors:
+            # Propagate from neighbor to rand_node
+            candidate_node = rrt_dubins.propagate(neighbor, rand_node)
+            if candidate_node is not None and rrt_dubins.check_collision(candidate_node) and is_within_bounds(candidate_node):
+                if candidate_node.cost < best_cost:
+                    best_cost = candidate_node.cost
+                    best_parent = neighbor
+                    best_new_node = candidate_node
+
+        return best_new_node
+
+    def rewire(new_node, neighbors):
+        """
+        For each neighbor, check if routing through new_node yields a lower cost.
+        If so, update that neighbor's parent, path, and cost.
+        """
+        for neighbor in neighbors:
+            # Skip if neighbor is the parent of new_node (avoid cycles)
+            if neighbor is new_node.parent:
+                continue
+            # Skip the start node (it has no parent to update)
+            if neighbor.parent is None:
+                continue
+
+            # Calculate cost of going through new_node to reach neighbor
+            candidate = rrt_dubins.propagate(new_node, neighbor)
+            if candidate is None:
+                continue
+            if not rrt_dubins.check_collision(candidate):
+                continue
+            if not is_within_bounds(candidate):
+                continue
+
+            # If this path is cheaper, rewire
+            if candidate.cost < neighbor.cost:
+                # Update neighbor's parent, path, and cost
+                neighbor.parent = new_node
+                neighbor.path_x = candidate.path_x
+                neighbor.path_y = candidate.path_y
+                neighbor.path_yaw = candidate.path_yaw
+                neighbor.cost = candidate.cost
+
+    def build_path(goal_node):
+        """Backtrack from goal_node to start via parent pointers, return path list."""
+        path = []
+        node = goal_node
+        while node is not None:
+            path.append(node)
+            node = node.parent
+        path.reverse()  # Reverse to get [start, ..., goal]
+        return path
+
+    # ----- Parameters -----
+    goal_bias = 0.15        # Probability of sampling the goal pose
+    goal_threshold = 2.0    # Distance threshold to attempt direct goal connection
+    neighbor_radius = 10.0  # Radius for neighbor search in RRT*
+
+    # Track the best path to goal found so far
+    best_goal_node = None
+    best_goal_cost = float('inf')
+
     # LOOP for max iterations
     for i in range(rrt_dubins.max_iter):
 
-        # TODO: Generate a random vehicle state (x, y, yaw)
-        # Hint: Ensure the state is within the bounds of rrt_dubins's map_area
+        # Generate a random vehicle state (x, y, yaw) with goal bias
+        if random.random() < goal_bias:
+            # Sample the goal pose directly
+            rand_x = rrt_dubins.goal.x
+            rand_y = rrt_dubins.goal.y
+            rand_yaw = rrt_dubins.goal.yaw
+        else:
+            # Sample a random pose within map bounds
+            rand_x = random.uniform(rrt_dubins.x_lim[0], rrt_dubins.x_lim[1])
+            rand_y = random.uniform(rrt_dubins.y_lim[0], rrt_dubins.y_lim[1])
+            rand_yaw = random.uniform(-math.pi, math.pi)
 
-        # TODO: Add any additional code you require for RRT*
+        # RRT*: Find all neighbors within radius
+        neighbors = find_neighbors(rrt_dubins.node_list, rand_x, rand_y, neighbor_radius)
 
-        # TODO: Find an existing node nearest to the random vehicle state
-        # example of usage
-        # new_node = rrt_dubins.propagate(
-        #     rrt_dubins.Node(0, 0, 0), rrt_dubins.Node(1, 1, 0)
-        # )
+        # Find the nearest node to the random state
+        nearest_node = find_nearest_node(rrt_dubins.node_list, rand_x, rand_y)
 
-        # TODO: Check if the path between nearest node and random state has obstacle collision
-        # Add the node to node_list if it is valid
-        # example of usage
-        # if rrt_dubins.check_collision(new_node):
-        #     rrt_dubins.node_list.append(new_node)  # Storing all valid nodes
+        # Create a temporary node for the random state
+        rand_node = rrt_dubins.Node(rand_x, rand_y, rand_yaw)
+
+        # Propagate from nearest node to get initial new_node
+        new_node = rrt_dubins.propagate(nearest_node, rand_node)
+
+        # RRT*: Try to find a better parent among neighbors
+        if neighbors:
+            better_node = choose_best_parent(neighbors, rand_node)
+            if better_node is not None:
+                # Use the better path if it has lower cost
+                if new_node is None or better_node.cost < new_node.cost:
+                    new_node = better_node
+
+        # Check if the path is valid (collision-free and within bounds)
+        if new_node is not None and rrt_dubins.check_collision(new_node) and is_within_bounds(new_node):
+            rrt_dubins.node_list.append(new_node)  # Storing all valid nodes
+
+            # RRT*: Rewire neighbors through new_node if cheaper
+            rewire(new_node, neighbors)
+
+            # Check if new_node is close enough to the goal
+            dist_to_goal = rrt_dubins.calc_dist_to_goal(new_node.x, new_node.y)
+            if dist_to_goal < goal_threshold:
+                # Attempt to connect directly to the goal
+                goal_node = rrt_dubins.propagate(new_node, rrt_dubins.goal)
+                if goal_node is not None and rrt_dubins.check_collision(goal_node) and is_within_bounds(goal_node):
+                    # Update best goal if this path is cheaper
+                    if goal_node.cost < best_goal_cost:
+                        best_goal_cost = goal_node.cost
+                        best_goal_node = goal_node
+                        # Add to node_list for visualization
+                        rrt_dubins.node_list.append(goal_node)
 
         # Draw current view of the map
         # PRESS ESCAPE TO EXIT
         if display_map:
             rrt_dubins.draw_graph()
 
-        # TODO: Check if new_node is close enough to the goal
-        # Replace 'True' with your goal check logic
-        if True:
-            print("Iters:", i, ", number of nodes:", len(rrt_dubins.node_list))
-            break
-
+    # Print final stats
+    if best_goal_node is not None:
+        print("Iters:", rrt_dubins.max_iter, ", number of nodes:", len(rrt_dubins.node_list), ", best cost:", best_goal_cost)
     else:
-        # This else block executes if the for loop finishes without breaking
+        # This block executes if no path was found
         print("Reached max iterations without finding a path")
 
-    # TODO: Return path, which is a list of nodes leading to the goal...
+    # Return path, which is a list of nodes leading to the goal
+    if best_goal_node is not None:
+        return build_path(best_goal_node)
     return None
